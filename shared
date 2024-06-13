@@ -1,0 +1,66 @@
+#include <iostream>
+#include <memory>
+
+template<class T>
+class MyShared {
+    T* p;
+    int* count;
+public:
+    MyShared(T* p) : p(p), count(new int(1)) {}
+    ~MyShared() {
+        if (--(*count) == 0) {
+            delete p;
+            delete count;
+        }
+    }
+
+    T* get() const { return p; }
+    T& operator*() { return *p; }
+    T* operator->() { return p; }
+
+    // Оператор копирования
+    MyShared(const MyShared& other) : p(other.p), count(other.count) {
+        ++(*count);
+    }
+    MyShared& operator=(const MyShared& other) {
+        if (this != &other) {
+            if (--(*count) == 0) {
+                delete p;
+                delete count;
+            }
+            p = other.p;
+            count = other.count;
+            ++(*count);
+        }
+        return *this;
+    }
+
+    // Оператор перемещения
+    MyShared(MyShared&& other) noexcept : p(other.p), count(other.count) {
+        other.p = nullptr;
+        other.count = nullptr;
+    }
+    MyShared& operator=(MyShared&& other) noexcept {
+        if (this != &other) {
+            if (--(*count) == 0) {
+                delete p;
+                delete count;
+            }
+            p = other.p;
+            count = other.count;
+            other.p = nullptr;
+            other.count = nullptr;
+        }
+        return *this;
+    }
+};
+
+template<typename T, typename... Args>
+MyShared<T> Make_MyShared(Args&&... args) {
+    return MyShared<T>(new T(std::forward<Args>(args)...));
+}
+
+int main() {
+    auto sharedPoint = Make_MyShared<MyPoint>(3, 4);
+    return 0;
+}
